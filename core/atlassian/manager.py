@@ -1,7 +1,7 @@
 import asyncio
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from core.atlassian.service import RepositoryGitClient
 from core.db.models import Repository, RepoStatus, SyncStatus
@@ -68,9 +68,9 @@ class RepoSyncManager:
             if task:
                 task.cancel()
 
-    async def restart(self, repository_id: str):
+    async def restart(self, repository_name: str, repository_id: Optional[str] = None):
         await self.stop(repository_id)
-        await self.start(repository_id)
+        await self.start(repository_name, repository_id)
 
     async def _poll_loop(self, repository_id: str, repository_name: str):
         try:
@@ -111,6 +111,18 @@ class RepoSyncManager:
             raise
         except Exception as e:
             print(f"[{repository_id}] Polling loop exited with error: {e}")
+        finally:
+            await self._remove_lock(repository_id)
+
+    async def _remove_lock(self, repository_id: str):
+        lock = self._locks.get(repository_id)
+
+        if lock:
+            async with lock:
+                pass
+
+            await self.stop(repository_id)
+            del self._locks[repository_id]
 
     def _do_sync(self, repository_id: str, repository_name: str):
         client = RepositoryGitClient(folder=repository_name)
@@ -144,3 +156,6 @@ class RepoSyncManager:
     @property
     def tasks(self):
         return self._tasks
+
+
+manager = RepoSyncManager()

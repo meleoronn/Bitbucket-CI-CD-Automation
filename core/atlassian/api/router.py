@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from core.atlassian.api import models
 from core.atlassian.auth import auth, strategies
+from core.atlassian.manager import manager
 from core.atlassian.service import BitbucketRepositoryClient, RepositoryGitClient
 
 router = APIRouter(prefix="/bitbucket/repository", tags=["Bitbucket"])
@@ -70,6 +71,7 @@ async def clone(
     try:
         client = RepositoryGitClient(folder=request.name, credentials=credentials)
         client.clone(url=request.url, branch=request.branch)
+        await manager.start(repository_name=request.name)
         return {"status": "success", "message": "The repository is cloned"}
     except FileExistsError as e:
         message = str(e)
